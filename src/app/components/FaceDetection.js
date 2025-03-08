@@ -1,7 +1,8 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import * as faceapi from 'face-api.js';
 import supabase from "@/lib/supabase";
-import * as XLSX from "xlsx";
+// import * as XLSX from "xlsx-js-style";
+import XLSX from 'xlsx-js-style';
 import { Button } from "@/components/ui/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Progress } from "@/components/ui/progress";
@@ -71,7 +72,7 @@ const FaceDetection = () => {
       await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
       await faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL);
       setIsModelLoaded(true);
-      console.log("Models loaded successfully");
+      // console.log("Models loaded successfully");
     } catch (err) {
       console.error("Error loading models:", err);
       setError("Failed to load face detection models.");
@@ -89,7 +90,7 @@ const FaceDetection = () => {
       const timestamp = new Date().getTime();
       const response = await fetch(`/api/faces?t=${timestamp}`);
       const data = await response.json();
-      console.log("Fetched faces:", data.faces);
+      // console.log("Fetched faces:", data.faces);
 
       if (data.error) throw new Error(data.error);
 
@@ -108,7 +109,7 @@ const FaceDetection = () => {
       );
 
       setLabeledDescriptors(labeledDescriptors);
-      console.log("Face descriptors updated");
+      // console.log("Face descriptors updated");
       setDetectedFaces({});
 
       const timer = setTimeout(() => setProgress(100), 500);
@@ -236,11 +237,12 @@ const FaceDetection = () => {
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
+    const year = date.getFullYear();
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
     const day = date.getDate().toString().padStart(2, '0');
-    const year = date.getFullYear();
-    return `${month}/${day}/${year}`;
+    return `${year}-${month}-${day}`;
   };
+  
 
   const detectFaces = useCallback(async () => {
     if (isModelLoaded && videoRef.current && isStreamReady && labeledDescriptors && labeledDescriptors.length > 0) {
@@ -291,7 +293,7 @@ const FaceDetection = () => {
               const personKey = `${label}_${currentDate}`;
 
               if (!detectedFaces[personKey]) {
-                console.log(`New face detected: ${label} with confidence ${confidencePercent}%`);
+                // console.log(`New face detected: ${label} with confidence ${confidencePercent}%`);
 
                 setAttendance(prev => [...prev, {
                   name: label,
@@ -305,7 +307,7 @@ const FaceDetection = () => {
                   [personKey]: { time: currentTime, confidence: confidencePercent }
                 }));
 
-                console.log(`Attendance automatically recorded for ${label} at ${timestamp} - Status: ${status}`);
+                // console.log(`Attendance automatically recorded for ${label} at ${timestamp} - Status: ${status}`);
               }
             }
           });
@@ -330,7 +332,7 @@ const FaceDetection = () => {
       labeledDescriptors &&
       labeledDescriptors.length > 0
     ) {
-      console.log("Starting automatic face detection");
+      // console.log("Starting automatic face detection");
 
       detectionIntervalRef.current = setInterval(() => {
         detectFaces();
@@ -375,7 +377,7 @@ const FaceDetection = () => {
           console.error("Upload error:", error);
           setError("Failed to upload image.");
         } else {
-          console.log("Uploaded image:", data);
+          // console.log("Uploaded image:", data);
           alert(`Image uploaded successfully for ${name}`);
 
           const status = getAttendanceStatus();
@@ -458,7 +460,7 @@ const FaceDetection = () => {
     const resetDetectedFacesAtMidnight = () => {
       const now = new Date();
       if (now.getHours() === 0 && now.getMinutes() === 0) {
-        console.log("Midnight reset - clearing detected faces");
+        // console.log("Midnight reset - clearing detected faces");
         setDetectedFaces({});
       }
     };
@@ -475,29 +477,95 @@ const FaceDetection = () => {
     }
   };
 
+
   const exportToExcel = () => {
-    if (attendance.length === 0) {
-      alert("No attendance records to export.");
-      return;
-    }
-
-    // Create a cleaned copy of the attendance data for export
-    const exportData = attendance.map(record => ({
-      Name: record.name,
-      Date: formatDate(record.date),
-      Time: record.time,
-      Confidence: record.confidence || "-",
-      Status: record.status
-    }));
-
-    const currentDate = new Date().toISOString().split('T')[0];
-    const fileName = `attendance_report_${currentDate}.xlsx`;
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(exportData);
-    XLSX.utils.book_append_sheet(wb, ws, "Attendance");
-    XLSX.writeFile(wb, fileName);
+      if (attendance.length === 0) {
+          alert("No attendance records to export.");
+          return;
+      }
+  
+      const wb = XLSX.utils.book_new();
+      const ws = XLSX.utils.aoa_to_sheet([]);
+  
+      // Define styles
+      const headerStyle = {
+          font: { name: 'Calibri', sz: 11, bold: true, color: { rgb: "FFFFFF" } },
+          fill: { fgColor: { rgb: "4F81BD" } },
+          alignment: { horizontal: "center", vertical: "center" }
+      };
+  
+      const subHeaderStyle = {
+          font: { name: 'Calibri', sz: 10, bold: true },
+          alignment: { horizontal: "center", vertical: "center" }
+      };
+  
+      const dataStyle = {
+          font: { name: 'Calibri', sz: 10 },
+          alignment: { horizontal: "left", vertical: "center" }
+      };
+  
+      // Add headers and subheaders
+      const headers = [
+          ["School Form 2 (SF2) Daily Attendance Report of Learners"],
+          ["(This replaced Form 1, Form 2 & STS Form 4 - Attendance Report)"],
+          ["School Year:", "", "", "", "Report for the Month of:", "", "", "", "Section:"],
+          ["", "", "", "", "(1st row for date, 2nd row for Day: M,T,W,TH,F)"],
+          ["LEARNER'S NAME", "(Last Name, First Name, Middle Name)", "T", "W", "TH", "F", "M", "T", "W", "TH", "F", "M", "T", "W", "TH", "F", "ABSENT", "TARDY", "TRANSFERRED IN/OUT (write the name of School)"]
+      ];
+  
+      headers.forEach((row, rowIndex) => {
+          XLSX.utils.sheet_add_aoa(ws, [row], { origin: rowIndex });
+          row.forEach((cell, colIndex) => {
+              const cellAddress = XLSX.utils.encode_cell({ r: rowIndex, c: colIndex });
+              if (ws[cellAddress]) {
+                  ws[cellAddress].s = rowIndex < 2 ? headerStyle : subHeaderStyle;
+              }
+          });
+      });
+  
+      // Add attendance data
+      attendance.forEach((record, index) => {
+          const rowData = [
+              record.name,
+              "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""
+          ];
+          XLSX.utils.sheet_add_aoa(ws, [rowData], { origin: -1 });
+          rowData.forEach((cell, colIndex) => {
+              const cellAddress = XLSX.utils.encode_cell({ r: index + headers.length, c: colIndex });
+              if (ws[cellAddress]) {
+                  ws[cellAddress].s = dataStyle;
+              }
+          });
+      });
+  
+      // Set column widths
+      const colWidths = Array(20).fill({ wch: 10 });
+      ws['!cols'] = colWidths;
+  
+      // Set merged cells
+      ws["!merges"] = [
+          XLSX.utils.decode_range("A1:F1"),
+          XLSX.utils.decode_range("A2:F2"),
+          XLSX.utils.decode_range("A3:D3"),
+          XLSX.utils.decode_range("E3:H3"),
+          XLSX.utils.decode_range("I3:L3"),
+          XLSX.utils.decode_range("A4:D4")
+      ];
+  
+      // Add the worksheet to the workbook
+      XLSX.utils.book_append_sheet(wb, ws, "SF2 Attendance");
+  
+      // Generate the file name
+      const currentDate = new Date().toISOString().split('T')[0];
+      const fileName = `sf2_attendance_report_${currentDate}.xlsx`;
+  
+      // Write the file
+      XLSX.writeFile(wb, fileName);
   };
+  
+
+
+  
 
   return (
     <div className="flex flex-row gap-4 p-5">
@@ -730,7 +798,7 @@ const FaceDetection = () => {
                             <Input
                               id="selected-date"
                               type="date"
-                              value={selectedDate}
+                              value={formatDate(selectedDate)}
                               onChange={(e) => setSelectedDate(e.target.value)}
                             />
                           </div>

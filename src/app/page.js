@@ -2,7 +2,10 @@
 
 import dynamic from 'next/dynamic';
 
-const FaceDetection = dynamic(() => import('./components/FaceDetection.js'), { ssr: false });
+const FaceDetection = dynamic(() => import('./components/FaceDetection'), {
+  ssr: false
+});
+
 
 export default function Home() {
   return (
